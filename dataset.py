@@ -16,6 +16,8 @@ from albumentations.augmentations.geometric.transforms import HorizontalFlip
 from albumentations.augmentations.geometric.rotate import Rotate
 from albumentations.augmentations.crops.transforms import BBoxSafeRandomCrop
 from albumentations.augmentations.transforms import ColorJitter
+from albumentations.augmentations.geometric.resize import Resize
+
 
 
 import random
@@ -25,6 +27,7 @@ def get_transform(train):
     return Compose(
       [
         HorizontalFlip(p=0.5),
+        Resize(550,800,cv2.INTER_LINEAR),
         Rotate(limit=20, p=0.5),
         BBoxSafeRandomCrop(p=0.5),
         ColorJitter(random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), p=0.5),
@@ -64,7 +67,7 @@ class GrapeDataset(torch.utils.data.Dataset):
         box_path = self.boxes[idx]
         # image elaboration
         img = cv2.imread(img_path).astype(np.uint8)
-
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         height, width, _ = img.shape
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
@@ -109,7 +112,7 @@ class GrapeDataset(torch.utils.data.Dataset):
             img = sample['image']
             target['boxes'] = torch.Tensor(sample['bboxes'])
 
-        return img, target
+        return img, target, img_path
 
     def __len__(self):
         return len(self.imgs)

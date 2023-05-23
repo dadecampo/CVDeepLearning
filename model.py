@@ -1,16 +1,7 @@
-import random
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection import FasterRCNN
 from torchvision.models.detection.rpn import AnchorGenerator
-
-from dataset import GrapeDataset, get_transform, plot_img_bbox
-
-
-dataset = GrapeDataset('dataset\Calibrated_Images', get_transform(train=True))
-print("Number of Dataset Images: ", len(dataset))
-img, target = dataset[random.randint(0,len(dataset)-1)]
-plot_img_bbox(img, target)
 
 def get_object_detection_model(num_classes):
   # load a model pre-trained pre-trained on COCO
