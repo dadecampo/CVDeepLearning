@@ -66,7 +66,7 @@ class GrapeDataset(torch.utils.data.Dataset):
         img_path = self.imgs[idx]
         box_path = self.boxes[idx]
         # image elaboration
-        img = cv2.imread(img_path).astype(np.uint8)
+        img = cv2.imread(img_path).astype(np.float32)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         height, width, _ = img.shape
         # note that we haven't converted the mask to RGB,
@@ -112,7 +112,7 @@ class GrapeDataset(torch.utils.data.Dataset):
             img = sample['image']
             target['boxes'] = torch.Tensor(sample['bboxes'])
 
-        return img, target, img_path
+        return img, target
 
     def __len__(self):
         return len(self.imgs)
