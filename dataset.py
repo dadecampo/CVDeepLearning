@@ -27,7 +27,6 @@ def get_transform(train):
     return Compose(
       [
         HorizontalFlip(p=0.5),
-        Resize(550,800,cv2.INTER_LINEAR),
         Rotate(limit=20, p=0.5),
         BBoxSafeRandomCrop(p=0.5),
         ColorJitter(random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), p=0.5),
@@ -37,16 +36,20 @@ def get_transform(train):
     )
   else:
     return Compose(
-      [ToTensorV2(p=1.0)],
+      [
+      ToTensorV2(p=1.0)
+      ],
       bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']}
     )
 
 class GrapeDataset(torch.utils.data.Dataset):
-    def __init__(self, root, transforms = None):
+    def __init__(self, root, width, height, transforms = None):
         self.transforms = transforms
         self.root = root
-        # load all image files, sorting them to
-        # ensure that they are aligned
+
+        self.width = width
+        self.height = height
+
         self.imgs=[]
         boxes_files=[]
         for root, dirs, files in os.walk(self.root):
@@ -66,8 +69,11 @@ class GrapeDataset(torch.utils.data.Dataset):
         img_path = self.imgs[idx]
         box_path = self.boxes[idx]
         # image elaboration
-        img = cv2.imread(img_path).astype(np.float32)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB).astype(np.float32)
+        img = cv2.resize(img, (self.width, self.height), cv2.INTER_AREA)
+        img/=255.0
+
         height, width, _ = img.shape
         # note that we haven't converted the mask to RGB,
         # because each color corresponds to a different instance
@@ -85,17 +91,29 @@ class GrapeDataset(torch.utils.data.Dataset):
                 box_wt = int(elems[3] * width)
                 box_ht = int(elems[4] * height)
 
-                x_min = x_center - box_wt/2
-                x_max  = x_center + box_wt/2
-                y_min = y_center - box_ht/2
-                y_max  = y_center + box_ht/2
+                x_min = max(0.0, x_center - box_wt/2)
+                x_max  = min(width, x_center + box_wt/2)
+                y_min = max(0.0, y_center - box_ht/2)
+                y_max  = min(height, y_center + box_ht/2)
+
+                   
 
                 boxes.append([x_min, y_min, x_max, y_max])
 
-        boxes = torch.as_tensor(boxes, dtype=torch.float32)
-        labels= torch.as_tensor(labels, dtype=torch.int64)
-        iscrowd= torch.zeros((boxes.shape[0],),dtype=torch.int64)
-        area = (boxes[:,3]-boxes[:,1])*(boxes[:,2]-boxes[:,0])
+        iscrowd = None
+        if len(boxes)!=0:
+          boxes = torch.as_tensor(boxes, dtype=torch.float32)
+          labels= torch.as_tensor(labels, dtype=torch.int64)
+          iscrowd= torch.zeros((boxes.shape[0],),dtype=torch.int64)
+          area = (boxes[:,3]-boxes[:,1])*(boxes[:,2]-boxes[:,0])
+        else:
+          area = torch.tensor(0)
+          boxes.append([0, 0, 1, 1])
+          boxes = torch.as_tensor(boxes, dtype=torch.float32)
+          labels= torch.as_tensor(labels, dtype=torch.int64)
+          labels = labels.unsqueeze(0)
+          iscrowd = torch.zeros((boxes.shape[0],),dtype=torch.int64)
+
 
         target={}
         target["boxes"] = boxes

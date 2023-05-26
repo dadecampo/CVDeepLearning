@@ -3,6 +3,7 @@ import os
 import cv2
 import numpy as np
 import torch
+torch.cuda.empty_cache()
 from PIL import Image
 import glob
 import torchvision.transforms as T
@@ -14,12 +15,14 @@ from torchvision import transforms as torchtrans
 from dataset import GrapeDataset, get_transform, plot_img_bbox
 from detection.engine import train_one_epoch, evaluate
 from detection.utils import collate_fn
+import gc
+gc.collect()
 
 if __name__ == '__main__':
     files_dir = 'dataset\Calibrated_Images'
     # use our dataset and defined transformations
-    dataset = GrapeDataset(files_dir, transforms=get_transform(train=True))
-    dataset_test = GrapeDataset(files_dir, transforms=get_transform(train=False))
+    dataset = GrapeDataset(files_dir, 800, 800,  transforms=get_transform(train=True))
+    dataset_test = GrapeDataset(files_dir, 800, 800,  transforms=get_transform(train=False))
 
     # split the dataset in train and test set
     torch.manual_seed(1)
@@ -34,17 +37,17 @@ if __name__ == '__main__':
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=10,
+        batch_size=4,
         shuffle=True,
-        num_workers=1,
+        num_workers=4,
         collate_fn=collate_fn,
     )
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
-        batch_size=10,
+        batch_size=4,
         shuffle=False,
-        num_workers=1,
+        num_workers=4,
         collate_fn=collate_fn,
     )
 
@@ -70,7 +73,7 @@ if __name__ == '__main__':
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params, lr=0.003, momentum=0.9, weight_decay=0.0005)
 
     # and a learning rate scheduler which decreases the learning rate by
     # 10x every 3 epochs
@@ -84,12 +87,13 @@ if __name__ == '__main__':
     num_epochs = 5
 
     for epoch in range(num_epochs):
+        gc.collect()
         # training for one epoch
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader, device=device)
 
     # the function takes the original prediction and the iou threshold.
     def apply_nms(orig_prediction, iou_thresh=0.3):
@@ -104,10 +108,7 @@ if __name__ == '__main__':
         return final_prediction
 
     # function to convert a torchtensor back to PIL image
-    def torch_to_pil(img):
-        return torchtrans.ToPILImage()(img).convert('RGB')
-
-    test_dataset = GrapeDataset('dataset\Calibrated_Images', transforms= get_transform(train=True))
+    test_dataset = GrapeDataset(files_dir, 400, 400,  transforms= get_transform(train=True))
 
     # pick one image from the test set
     img, target = test_dataset[10]
@@ -120,4 +121,4 @@ if __name__ == '__main__':
     print('MODEL OUTPUT\n')
     nms_prediction = apply_nms(prediction, iou_thresh=0.01)
 
-    plot_img_bbox(torch_to_pil(img), nms_prediction)
+    plot_img_bbox(img, nms_prediction)
