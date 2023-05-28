@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import torch
 torch.cuda.empty_cache()
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH']='true'
 from PIL import Image
 import glob
 import torchvision.transforms as T
@@ -16,12 +17,35 @@ from dataset import GrapeDataset, get_transform, plot_img_bbox
 from detection.engine import train_one_epoch, evaluate
 from detection.utils import collate_fn
 import gc
-gc.collect()
+import GPUtil
 
+import torch
+from GPUtil import showUtilization as gpu_usage
+from numba import cuda
+
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+
+def free_gpu_cache():
+    print("Initial GPU Usage")
+    gpu_usage()                             
+
+    torch.cuda.empty_cache()
+
+    cuda.select_device(0)
+    cuda.close()
+    cuda.select_device(0)
+
+    print("GPU Usage after emptying the cache")
+    gpu_usage()
+
+
+gc.collect()
+free_gpu_cache()
 if __name__ == '__main__':
     files_dir = 'dataset\Calibrated_Images'
     # use our dataset and defined transformations
-    dataset = GrapeDataset(files_dir, 800, 800,  transforms=get_transform(train=True))
+    dataset = GrapeDataset(files_dir, 800, 800, transforms=get_transform(train=True))
     dataset_test = GrapeDataset(files_dir, 800, 800,  transforms=get_transform(train=False))
 
     # split the dataset in train and test set
@@ -37,23 +61,23 @@ if __name__ == '__main__':
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=4,
+        batch_size=1,
         shuffle=True,
-        num_workers=4,
+        num_workers=1,
         collate_fn=collate_fn,
     )
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
-        batch_size=4,
+        batch_size=1,
         shuffle=False,
-        num_workers=4,
+        num_workers=1,
         collate_fn=collate_fn,
     )
 
     def get_object_detection_model(num_classes):
             # load a model pre-trained pre-trained on COCO
-        model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+        model = torchvision.models.detection.fasterrcnn_resnet50_fpn_v2(pretrained=True)
         # get number of input features for the classifier
         in_features = model.roi_heads.box_predictor.cls_score.in_features
         # replace the pre-trained head with a new one
@@ -61,7 +85,6 @@ if __name__ == '__main__':
         return model
 
     # train on gpu if available
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     num_classes = 2 # one class (class 0) is dedicated to the "background"
 
@@ -73,7 +96,7 @@ if __name__ == '__main__':
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.003, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
 
     # and a learning rate scheduler which decreases the learning rate by
     # 10x every 3 epochs
@@ -84,9 +107,10 @@ if __name__ == '__main__':
     )
 
     # training for 5 epochs
-    num_epochs = 5
+    num_epochs = 20
 
     for epoch in range(num_epochs):
+        torch.cuda.empty_cache()
         gc.collect()
         # training for one epoch
         train_one_epoch(model, optimizer, data_loader, device, epoch, print_freq=10)
@@ -108,10 +132,10 @@ if __name__ == '__main__':
         return final_prediction
 
     # function to convert a torchtensor back to PIL image
-    test_dataset = GrapeDataset(files_dir, 400, 400,  transforms= get_transform(train=True))
+    test_dataset = GrapeDataset(files_dir, 800, 800,  transforms= get_transform(train=False))
 
     # pick one image from the test set
-    img, target = test_dataset[10]
+    img, target = test_dataset[8]
     # put the model in evaluation mode
     model.eval()
     with torch.no_grad():
@@ -121,4 +145,4 @@ if __name__ == '__main__':
     print('MODEL OUTPUT\n')
     nms_prediction = apply_nms(prediction, iou_thresh=0.01)
 
-    plot_img_bbox(img, nms_prediction)
+    plot_img_bbox(img, target, nms_prediction)

@@ -135,13 +135,15 @@ class GrapeDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.imgs)
     
-def plot_img_bbox(img, target):
+def plot_img_bbox(img, target, prediction):
   # plot the image and bboxes
   # Bounding boxes are defined as follows: x-min y-min width height
-  fig, a = plt.subplots(1,1)
+  fig, ax = plt.subplots(2,1)
   fig.set_size_inches(5,5)
   img=img.permute(1,2,0)
-  a.imshow(img)
+  ax[0].imshow(img)
+  ax[1].imshow(img)
+
   for box in (target['boxes']):
     x, y, width, height  = box[0], box[1], box[2]-box[0], box[3]-box[1]
     rect = patches.Rectangle(
@@ -152,6 +154,18 @@ def plot_img_bbox(img, target):
       facecolor = 'none'
     )
     # Draw the bounding box on top of the image
-    a.add_patch(rect)
+    ax[0].add_patch(rect)
+
+  for box in (prediction['boxes']):
+    x, y, width, height  = box[0], box[1], box[2]-box[0], box[3]-box[1]
+    rect = patches.Rectangle(
+      (x, y),
+      width, height,
+      linewidth = 2,
+      edgecolor = 'r',
+      facecolor = 'none'
+    )
+    # Draw the bounding box on top of the image
+    ax[1].add_patch(rect)
   plt.show()
     
