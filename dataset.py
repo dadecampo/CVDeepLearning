@@ -17,6 +17,7 @@ from albumentations.augmentations.geometric.rotate import Rotate
 from albumentations.augmentations.crops.transforms import BBoxSafeRandomCrop
 from albumentations.augmentations.transforms import ColorJitter
 from albumentations.augmentations.geometric.resize import Resize
+from albumentations.augmentations.geometric.resize import RandomScale
 
 
 
@@ -28,6 +29,7 @@ def get_transform(train):
       [
         HorizontalFlip(p=0.5),
         Rotate(limit=20, p=0.5),
+        RandomScale(scale_limit=0.4, interpolation = cv2.INTER_LINEAR, p=0.5),
         BBoxSafeRandomCrop(p=0.5),
         ColorJitter(random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), random.uniform(0,0.2), p=0.5),
         ToTensorV2(p=1.0) 
