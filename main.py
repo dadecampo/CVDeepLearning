@@ -7,7 +7,7 @@ from PIL import Image
 import glob
 import torchvision.transforms as T
 import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FastRCNNConvFCHead
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from torchvision import transforms as torchtrans  
@@ -19,14 +19,18 @@ import gc
 import time
 from tqdm import tqdm
 
-
-device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+DEVICE = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+BATCH_SIZE = 1
+EPOCHS = 15
+IMAGE_WIDTH = 800
+IMAGE_HEIGHT = 500
 
 if __name__ == '__main__':
-    files_dir = 'dataset\Calibrated_Images'
+    files_dir = 'dataset\Calibrated_Images\with_Counting\Multiple_Cultivar_BBCH83_13_08_20'
+    #files_dir = 'dataset\Calibrated_Images'
     # use our dataset and defined transformations
-    dataset = GrapeDataset(files_dir, 2000, 1350, transforms=get_transform(train=True))
-    dataset_test = GrapeDataset(files_dir, 2000, 1350,  transforms=get_transform(train=False))
+    dataset = GrapeDataset(files_dir, IMAGE_WIDTH, IMAGE_HEIGHT, transforms=get_transform(train=True))
+    dataset_test = GrapeDataset(files_dir, IMAGE_WIDTH, IMAGE_HEIGHT, transforms=get_transform(train=False))
 
     # split the dataset in train and test set
     torch.manual_seed(1)
@@ -38,20 +42,21 @@ if __name__ == '__main__':
     dataset = torch.utils.data.Subset(dataset, indices[:-tsize])
     dataset_test = torch.utils.data.Subset(dataset_test, indices[-tsize:])
     print(len(dataset))
+    
     # define training and validation data loaders
     data_loader = torch.utils.data.DataLoader(
         dataset,
-        batch_size=1,
+        batch_size=BATCH_SIZE,
         shuffle=True,
-        num_workers=1,
+        num_workers=4,
         collate_fn=collate_fn,
     )
 
     data_loader_test = torch.utils.data.DataLoader(
         dataset_test,
-        batch_size=1,
+        batch_size=BATCH_SIZE,
         shuffle=False,
-        num_workers=1,
+        num_workers=4,
         collate_fn=collate_fn,
     )
 
@@ -60,45 +65,39 @@ if __name__ == '__main__':
         from torchvision.models.detection import FasterRCNN
         from torchvision.models.detection.rpn import AnchorGenerator
         from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+        from torchvision.models.detection import retinanet_resnet50_fpn_v2
+        from torchvision.models.detection import RetinaNet, RetinaNet_ResNet50_FPN_V2_Weights, FasterRCNN_ResNet50_FPN_Weights
+        from torchvision.models import ResNet50_Weights, resnet101
+        from torchvision.models.detection.retinanet import RetinaNetClassificationHead, RetinaNetRegressionHead
+        from functools import partial
 
-        # load a model pre-trained pre-trained on COCO
-        # load a pre-trained model for classification and return
-        # only the features
-
-        backbone = resnet_fpn_backbone(backbone_name="resnet101", pretrained=True)
-        # FasterRCNN needs to know the number of
-        # output channels in a backbone. For mobilenet_v2, it's 1280
-        # so we need to add it here
-        
-        
-        #backbone.out_channels = 512
-
-        # let's make the RPN generate 5 x 3 anchors per spatial
-        # location, with 5 different sizes and 3 different aspect
-        # ratios. We have a Tuple[Tuple[int]] because each feature
-        # map could potentially have different sizes and
-        # aspect ratios
+        #weights = RetinaNet_ResNet50_FPN_V2_Weights.COCO_V1
+        model = torchvision.models.detection.retinanet_resnet50_fpn_v2(
+            weights=RetinaNet_ResNet50_FPN_V2_Weights.COCO_V1
+        )   
+        num_anchors = model.head.classification_head.num_anchors
+        model.head.classification_head = RetinaNetClassificationHead(
+            in_channels=256,
+            num_anchors=num_anchors,
+            num_classes=num_classes,
+            norm_layer=partial(torch.nn.GroupNorm, 32)
+        )
         anchor_generator = AnchorGenerator(sizes=((32, 64, 128, 256, 512),),
                                         aspect_ratios=((0.5, 1.0, 2.0),))
-
-        # let's define what are the feature maps that we will
-        # use to perform the region of interest cropping, as well as
-        # the size of the crop after rescaling.
-        # if your backbone returns a Tensor, featmap_names is expected to
-        # be [0]. More generally, the backbone should return an
-        # OrderedDict[Tensor], and in featmap_names you can choose which
-        # feature maps to use.
         roi_pooler = torchvision.ops.MultiScaleRoIAlign(featmap_names=['0'],
                                                         output_size=7,
                                                         sampling_ratio=2)
-
-        # put the pieces together inside a FasterRCNN model
-        model = FasterRCNN(backbone,
-                        num_classes=2)
-        
         return model
+    
+    def get_yolo_object_detection_model(num_classes):
+        # the neural network configuration
+        config_path = "yolov3/cfg/yolov3.cfg"
+        # the YOLO net weights file
+        weights_path = "yolov3/weights/yolov3.weights"
+        model = cv2.dnn.readNetFromDarknet(config_path, weights_path)
+        return model
+    
 
-    # train on gpu if available
 
     num_classes = 2 # one class (class 0) is dedicated to the "background"
 
@@ -106,11 +105,11 @@ if __name__ == '__main__':
     model = get_object_detection_model(num_classes)
 
     # move model to the right device
-    model.to(device)
+    model.to(DEVICE)
 
     # construct an optimizer
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params, lr=0.01, momentum=0.9, weight_decay=0.001)
 
     # and a learning rate scheduler which decreases the learning rate by
     # 10x every 3 epochs
@@ -155,17 +154,17 @@ if __name__ == '__main__':
             tepoch.set_postfix(loss=losses.item())
 
     # training for 5 epochs
-    num_epochs = 5
 
-    for epoch in range(num_epochs):
-        torch.cuda.empty_cache()
-        gc.collect()
+    for epoch in range(EPOCHS):
         # training for one epoch
-        train_epoch(model, optimizer, data_loader, device, epoch)
+        train_one_epoch(model, optimizer, data_loader, DEVICE, epoch, print_freq=10)
         # update the learning rate
         lr_scheduler.step()
         # evaluate on the test dataset
-        evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_test, device=DEVICE)
+
+        
+    evaluate(model, data_loader_test, device=DEVICE)
 
     # the function takes the original prediction and the iou threshold.
     def apply_nms(orig_prediction, iou_thresh=0.3):
@@ -180,14 +179,14 @@ if __name__ == '__main__':
         return final_prediction
 
     # function to convert a torchtensor back to PIL image
-    test_dataset = GrapeDataset(files_dir, 2000, 1350,   transforms= get_transform(train=False))
+    test_dataset = GrapeDataset(files_dir, IMAGE_WIDTH, IMAGE_HEIGHT, transforms= get_transform(train=False))
 
     # pick one image from the test set
     img, target = test_dataset[8]
     # put the model in evaluation mode
     model.eval()
     with torch.no_grad():
-        prediction = model([img.to(device)])[0]
+        prediction = model([img.to(DEVICE)])[0]
 
 
     print('MODEL OUTPUT\n')
