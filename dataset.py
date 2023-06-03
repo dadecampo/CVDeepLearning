@@ -171,3 +171,26 @@ def plot_img_bbox(img, target, prediction):
     ax[1].add_patch(rect)
   plt.show()
     
+
+
+def plot_img_bbox(img, target):
+  # plot the image and bboxes
+  # Bounding boxes are defined as follows: x-min y-min width height
+  fig, ax = plt.subplots(1,1)
+  fig.set_size_inches(5,5)
+  img=img.permute(1,2,0)
+  ax.imshow(img)
+  ax.imshow(img)
+
+  for box in (target['boxes']):
+    x, y, width, height  = box[0], box[1], box[2]-box[0], box[3]-box[1]
+    rect = patches.Rectangle(
+      (x, y),
+      width, height,
+      linewidth = 2,
+      edgecolor = 'r',
+      facecolor = 'none'
+    )
+    # Draw the bounding box on top of the image
+    ax.add_patch(rect)
+  plt.show()
