@@ -161,3 +161,4 @@ cython_debug/
 dataset/
 yolov3/images/
 yolov3/
+weights/
