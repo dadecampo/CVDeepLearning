@@ -1,8 +1,0 @@
-Potrebbe essere interessante applicare un'altro tipo di training per fasterrcnn:
-1) Addestrare prima Region Proposal Network,
-2) Utilizzare le proposal per trainare Fast RCNN,
-3) Iterare procedimento.
-
-Potrebbe essere interessante anche usare ResinaNET o comunque prenderene in prestito l'idea del Focal Loss.
-
-Provare SmoothL1Loss come loss.
