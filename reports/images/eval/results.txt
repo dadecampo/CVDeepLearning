@@ -1,0 +1,29 @@
+WGISD
+mobilenet: mAP@50=0.6656300802256085, mAP@50:95=0.2655071411036369, FPS=16.443678033511745
+vgg16: mAP@50=0.6923899421087644, mAP@50:95=0.2966914916730177, FPS=9.487709012173067
+vgg19: mAP@50=0.7149076600099544, mAP@50:95=0.3012798892987216, FPS=8.039356822454815
+resnet18_fpn: mAP@50=0.7743650781212935, mAP@50:95=0.3582359997238067, FPS=16.53756614411371
+resnet50_fpn: mAP@50=0.797268017751261, mAP@50:95=0.40208875249109055, FPS=11.277612089539588
+resnet101_fpn: mAP@50=0.7726428603072665, mAP@50:95=0.3558961110855283, FPS=8.363273588051593
+
+YOLO-WGISD:
+Model summary: 157 layers, 7012822 parameters, 0 gradients, 15.8 GFLOPs
+val: Scanning /datasets/wgisd/labels/val.cache... 60 images, 0 backgrounds, 0 corrupt: 100% 60/60 [00:00<?, ?it/s]
+                 Class     Images  Instances          P          R      mAP50   mAP50-95: 100% 2/2 [00:09<00:00,  4.64s/it]
+                   all         60        855       0.88      0.856      0.913      0.604
+Speed: 1.1ms pre-process, 50.1ms inference, 83.0ms NMS per image at shape (1, 3, 1216, 1216)
+
+WGRAPE
+mobilenet: mAP@50=0.1838743874870928, mAP@50:95=0.04991885271960942, FPS=15.244552293867605
+vgg16: mAP@50=0.31680428726922055, mAP@50:95=0.08514332669165857, FPS=9.601996835575322
+vgg19: mAP@50=0.31211832481444185, mAP@50:95=0.09199225824043682, FPS=8.168488540730644
+resnet18_fpn: mAP@50=0.4741510449017229, mAP@50:95=0.1308517963164254, FPS=16.46831019680122
+resnet50_fpn: mAP@50=0.5527306567087473, mAP@50:95=0.16584675607750762, FPS=11.22769580028963
+resnet101_fpn: mAP@50=0.49395039479551023, mAP@50:95=0.1517118958260066, FPS=8.430547123990626
+
+YOLO-WGRAPE:
+Model summary: 157 layers, 7012822 parameters, 0 gradients, 15.8 GFLOPs
+val: Scanning /datasets/grapes/labels/val.cache... 54 images, 0 backgrounds, 0 corrupt: 100% 54/54 [00:00<?, ?it/s]
+                 Class     Images  Instances          P          R      mAP50   mAP50-95: 100% 2/2 [00:26<00:00, 13.35s/it]
+                   all         54        448      0.742      0.665      0.711      0.264
+Speed: 1.2ms pre-process, 49.5ms inference, 86.9ms NMS per image at shape (1, 3, 1216, 1216)
