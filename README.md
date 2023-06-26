@@ -1,8 +1,12 @@
 # CVDeepLearning
 Repository for Computer Vision &amp; Deep Learning Exam (UNIVR Master's Degree in Computer Science &amp; Engineering)
 
-<!-- ACKNOWLEDGMENTS -->
-## Acknowledgments
+## Documentation
 
-* [wGrapeUNIPD-DL: an open dataset for white grape bunch detection](https://zenodo.org/record/6757555)
-* [wGrapeUNIPD-DL: Automatic Bunch Detection Journal Article](https://www.mdpi.com/2073-4395/12/2/319)
+**wGrapesFasterRCNN_COLAB.ipynb** : Jupyter Notebook with the code relative to FasterRCNN implementation.
+
+**wGrapesYOLOv5_COLAB.ipynb** : Jupyter Notebook with the code relative to Ultralytics YOLOv5 implementation.
+
+**wgisd.yaml** : this file is necessary for the WGISD training in YOLOv5.
+
+**wgrapeunipd.yaml** : this file is necessary for the wGrapeUNIPD training in YOLOv5.
